@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marketing Campaign ROI Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --teal: #00695C; --teal-mid: #00897B; --teal-light: #E0F2F1;
+    --green: #1B5E20; --green-light: #E8F5E9;
+    --amber: #E65100; --amber-light: #FFF3E0;
+    --red: #B71C1C; --red-light: #FFEBEE;
+    --blue: #1565C0; --blue-light: #E3F2FD;
+    --gray: #F5F7FA; --border: #CFD8DC; --text: #102027; --muted: #607D8B;
+  }
+  * { box-sizing: border-box; margin:0; padding:0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #ECEFF1; color: var(--text); }
+
+  .header { background: linear-gradient(135deg, #004D40 0%, #00695C 50%, #00897B 100%); padding: 30px 40px; color: white; }
+  .header h1 { font-size: 26px; font-weight: 800; }
+  .header p { font-size: 13px; color: #80CBC4; margin-top: 4px; }
+  .header-meta { display: flex; gap: 20px; margin-top: 10px; flex-wrap: wrap; }
+  .header-meta span { font-size: 12px; color: #80CBC4; background: rgba(255,255,255,0.1); padding: 4px 12px; border-radius: 20px; }
+
+  .story-banner { background: #004D40; border-left: 5px solid #64FFDA; padding: 16px 24px; margin: 22px 40px; border-radius: 6px; }
+  .story-banner h2 { font-size: 14px; color: #64FFDA; font-weight: 700; margin-bottom: 6px; }
+  .story-banner p { font-size: 13px; color: #B2DFDB; line-height: 1.65; }
+
+  .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; padding: 0 40px 20px; }
+  .kpi { background: white; border-radius: 10px; padding: 18px; border: 1px solid var(--border); box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+  .kpi-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; }
+  .kpi-value { font-size: 22px; font-weight: 800; color: var(--teal); margin: 4px 0; }
+  .kpi-sub { font-size: 11px; color: var(--muted); }
+  .kpi-badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; margin-top: 4px; }
+  .badge-g { background: var(--green-light); color: var(--green); }
+  .badge-a { background: var(--amber-light); color: var(--amber); }
+  .badge-r { background: var(--red-light); color: var(--red); }
+  .badge-b { background: var(--blue-light); color: var(--blue); }
+
+  .controls { padding: 0 40px 20px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .controls label { font-size: 13px; font-weight: 600; color: var(--teal); }
+  .controls select { border: 1.5px solid var(--border); border-radius: 6px; padding: 7px 12px; font-size: 13px; background: white; cursor: pointer; }
+
+  .what-if { background: white; border: 2px solid var(--teal-mid); border-radius: 10px; padding: 20px 24px; margin: 0 40px 20px; }
+  .what-if h3 { font-size: 14px; font-weight: 700; color: var(--teal); margin-bottom: 14px; }
+  .what-if-inner { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+  .what-if label { font-size: 13px; color: var(--text); font-weight: 600; }
+  .what-if select { border: 1.5px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size: 13px; background: white; }
+  input[type="range"] { width: 180px; accent-color: var(--teal-mid); }
+  .what-if-result { background: var(--teal-light); border-radius: 8px; padding: 12px 18px; font-size: 13px; line-height: 1.5; flex: 1; min-width: 220px; }
+
+  .grid { display: grid; gap: 18px; padding: 0 40px 40px; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .card { background: white; border-radius: 10px; padding: 22px; border: 1px solid var(--border); box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
+  .card-full { grid-column: 1 / -1; }
+  .card h3 { font-size: 14px; font-weight: 700; color: var(--teal); margin-bottom: 3px; }
+  .card-sub { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+  .chart-wrap { position: relative; height: 260px; }
+  .chart-wrap-lg { position: relative; height: 320px; }
+
+  table.roi { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.roi th { background: var(--teal); color: white; padding: 9px 10px; text-align: left; font-size: 11px; font-weight: 600; }
+  table.roi td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  table.roi tr:hover td { background: var(--teal-light); }
+  .roi-bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .roi-bar { height: 14px; border-radius: 3px; min-width: 4px; transition: width 0.3s; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .tag-g { background: var(--green-light); color: var(--green); }
+  .tag-a { background: var(--amber-light); color: var(--amber); }
+  .tag-r { background: var(--red-light); color: var(--red); }
+
+  .insights-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .insight-card { background: var(--gray); border-radius: 8px; padding: 16px; border-left: 4px solid var(--teal-mid); }
+  .insight-card.warn { border-left-color: var(--amber); }
+  .insight-card.cut { border-left-color: var(--red); }
+  .insight-card h4 { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
+  .insight-card p { font-size: 13px; line-height: 1.5; }
+  .insight-card .hl { font-weight: 700; color: var(--teal); }
+
+  @media(max-width:900px) {
+    .kpi-row,.grid-2,.grid-3{grid-template-columns:1fr 1fr}
+    .header,.kpi-row,.grid,.controls,.story-banner,.what-if{padding-left:16px;padding-right:16px}
+    .card-full{grid-column:1}
+    .insights-grid{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Marketing Campaign ROI Dashboard — Full Year 2024</h1>
+  <p>CMO &amp; CFO Strategic Marketing Intelligence Report</p>
+  <div class="header-meta">
+    <span>46 Campaigns</span><span>6 Channels</span><span>5 Industry Segments</span><span>Q1–Q4 Full Year</span>
+  </div>
+</div>
+
+<div class="story-banner">
+  <h2>💡 The Central Marketing Story</h2>
+  <p><strong style="color:#A7FFEB;">Email marketing is the hidden ROI champion</strong> — generating an average 10x return on spend at 1/10th the cost of paid channels. Meanwhile, Q4 Holiday campaigns alone drove 38% of full-year Retail revenue. The data reveals a clear optimization opportunity: <strong style="color:#F8BBD0;">Display Ads consistently underperform</strong> with the lowest conversion rates across all segments — budget reallocation to Email and Search could unlock an estimated $400K+ in additional revenue.</p>
+</div>
+
+<div class="kpi-row">
+  <div class="kpi"><div class="kpi-label">Total Revenue</div><div class="kpi-value" id="kRev">—</div><div class="kpi-sub">Generated</div><span class="kpi-badge badge-g" id="kRevBadge">Loading</span></div>
+  <div class="kpi"><div class="kpi-label">Total Budget Spent</div><div class="kpi-value" id="kBudget">—</div><div class="kpi-sub">Across campaigns</div><span class="kpi-badge badge-b">Full year</span></div>
+  <div class="kpi"><div class="kpi-label">Blended ROI</div><div class="kpi-value" id="kROI">—</div><div class="kpi-sub">Return on investment</div><span class="kpi-badge badge-g" id="kROIBadge">vs benchmark</span></div>
+  <div class="kpi"><div class="kpi-label">Best Channel</div><div class="kpi-value" id="kBestCh">—</div><div class="kpi-sub" id="kBestChSub">by ROI%</div><span class="kpi-badge badge-g">ROI Champion</span></div>
+  <div class="kpi"><div class="kpi-label">Best Quarter</div><div class="kpi-value" id="kBestQ">—</div><div class="kpi-sub" id="kBestQSub">highest revenue</div><span class="kpi-badge badge-a">Seasonal Peak</span></div>
+</div>
+
+<div class="controls">
+  <label>Segment:</label>
+  <select id="segFilter" onchange="updateAll()">
+    <option value="All">All Segments</option>
+    <option>Retail</option><option>Technology</option>
+    <option>B2B Services</option><option>Education</option><option>Healthcare</option>
+  </select>
+  <label>Quarter:</label>
+  <select id="qFilter" onchange="updateAll()">
+    <option value="All">All Quarters</option>
+    <option>Q1</option><option>Q2</option><option>Q3</option><option>Q4</option>
+  </select>
+  <label>Channel:</label>
+  <select id="chFilter" onchange="updateAll()">
+    <option value="All">All Channels</option>
+    <option>Email</option><option>Search Ads</option><option>Social Media</option>
+    <option>Display Ads</option><option>LinkedIn</option><option>Influencer</option>
+  </select>
+</div>
+
+<div class="what-if">
+  <h3>🔧 "What If" Budget Simulator</h3>
+  <div class="what-if-inner">
+    <div>
+      <label>If I change budget for: </label><br>
+      <select id="wiChannel" onchange="updateWhatIf()">
+        <option>Email</option><option>Search Ads</option><option>Social Media</option>
+        <option>Display Ads</option><option>LinkedIn</option><option>Influencer</option>
+      </select>
+    </div>
+    <div>
+      <label>Budget change: <strong id="wiPctLabel">+0%</strong></label><br>
+      <input type="range" id="wiBudgetSlider" min="-50" max="100" value="0" step="10" oninput="updateWhatIf()">
+    </div>
+    <div class="what-if-result" id="whatIfResult">
+      Select a channel and adjust the slider to see projected revenue impact.
+    </div>
+  </div>
+</div>
+
+<div class="grid grid-2">
+  <div class="card">
+    <h3>ROI % by Channel</h3>
+    <div class="card-sub">Green = outstanding (&gt;800%), amber = good (200–800%), red = poor (&lt;200%)</div>
+    <div class="chart-wrap"><canvas id="roiByChannel"></canvas></div>
+  </div>
+  <div class="card">
+    <h3>Budget vs Revenue by Channel</h3>
+    <div class="card-sub">Bar comparison — budget spent vs revenue generated</div>
+    <div class="chart-wrap"><canvas id="budgetVsRev"></canvas></div>
+  </div>
+</div>
+
+<div class="grid grid-3">
+  <div class="card" style="grid-column: span 2">
+    <h3>Budget Allocation by Quarter</h3>
+    <div class="card-sub">Stacked — how budget was distributed across channels each quarter</div>
+    <div class="chart-wrap"><canvas id="budgetByQ"></canvas></div>
+  </div>
+  <div class="card">
+    <h3>Customer Acquisition Cost</h3>
+    <div class="card-sub">Average CAC per channel — lower is better</div>
+    <div class="chart-wrap"><canvas id="cacChart"></canvas></div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card card-full">
+    <h3>Campaign Performance Leaderboard</h3>
+    <div class="card-sub">All campaigns ranked by ROI% — sorted highest to lowest. ROI bar shows relative performance.</div>
+    <div style="overflow-x:auto;max-height:360px;overflow-y:auto">
+      <table class="roi">
+        <thead><tr><th>Campaign</th><th>Channel</th><th>Quarter</th><th>Segment</th><th>Budget</th><th>Revenue</th><th>ROI %</th><th>CAC</th><th>Conv Rate</th><th>Rating</th></tr></thead>
+        <tbody id="campaignBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card card-full">
+    <h3>📊 Strategic Insights & Optimization Opportunities</h3>
+    <div style="height:10px"></div>
+    <div class="insights-grid" id="insightsGrid">
+      <div class="insight-card">
+        <h4>🏆 Double Down</h4>
+        <p>Email campaigns deliver an average <span class="hl">900%+ ROI</span> across all segments at minimal spend. This channel is chronically underbudgeted — every $1K shifted from Display to Email is estimated to generate $8K+ in additional revenue.</p>
+      </div>
+      <div class="insight-card warn">
+        <h4>⚠️ Watch Zone</h4>
+        <p>Display Ads show the <span class="hl">lowest conversion rates</span> in every segment (typically 0.1% vs 1–3% for other channels). The $55K+ spent on Display in Q4 alone could have been reallocated to generate an estimated $250K+ more revenue.</p>
+      </div>
+      <div class="insight-card cut">
+        <h4>✂️ Reallocation Candidate</h4>
+        <p>Q4 Holiday campaigns generated <span class="hl">38% of full-year Retail revenue</span> with 3x better efficiency than Q1–Q2 combined. Shifting budget seasonally — reducing Q1–Q2 spend by 15% and increasing Q4 by 20% — projects a significant uplift.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const campaigns = [
+  {name:"Spring Brand Awareness",ch:"Social Media",q:"Q1",seg:"Retail",budget:45000,rev:189000,leads:2520,conv:378,cac:119,cvr:0.150},
+  {name:"Spring Brand Awareness",ch:"Search Ads",q:"Q1",seg:"Retail",budget:38000,rev:230400,leads:1920,conv:384,cac:99,cvr:0.200},
+  {name:"Spring Brand Awareness",ch:"Email",q:"Q1",seg:"Retail",budget:12000,rev:129600,leads:18000,conv:1440,cac:8,cvr:0.080},
+  {name:"Spring Brand Awareness",ch:"Display Ads",q:"Q1",seg:"Retail",budget:22000,rev:52500,leads:750,conv:75,cac:293,cvr:0.100},
+  {name:"Product Launch - SmartHome",ch:"Social Media",q:"Q1",seg:"Technology",budget:65000,rev:378000,leads:5040,conv:756,cac:86,cvr:0.150},
+  {name:"Product Launch - SmartHome",ch:"Search Ads",q:"Q1",seg:"Technology",budget:72000,rev:540000,leads:4500,conv:900,cac:80,cvr:0.200},
+  {name:"Product Launch - SmartHome",ch:"Email",q:"Q1",seg:"Technology",budget:18000,rev:194400,leads:27000,conv:2160,cac:8,cvr:0.080},
+  {name:"Product Launch - SmartHome",ch:"Influencer",q:"Q1",seg:"Technology",budget:95000,rev:510000,leads:8500,conv:850,cac:112,cvr:0.100},
+  {name:"Spring Sale Event",ch:"Social Media",q:"Q1",seg:"Retail",budget:55000,rev:588000,leads:4200,conv:840,cac:65,cvr:0.200},
+  {name:"Spring Sale Event",ch:"Search Ads",q:"Q1",seg:"Retail",budget:48000,rev:900000,leads:3750,conv:1125,cac:43,cvr:0.300},
+  {name:"Spring Sale Event",ch:"Email",q:"Q1",seg:"Retail",budget:15000,rev:270000,leads:22500,conv:2700,cac:6,cvr:0.120},
+  {name:"B2B Lead Generation",ch:"LinkedIn",q:"Q1",seg:"B2B Services",budget:85000,rev:456000,leads:2280,conv:228,cac:373,cvr:0.100},
+  {name:"B2B Lead Generation",ch:"Email",q:"Q1",seg:"B2B Services",budget:25000,rev:375000,leads:15000,conv:750,cac:33,cvr:0.050},
+  {name:"Summer Campaign",ch:"Social Media",q:"Q2",seg:"Retail",budget:60000,rev:638400,leads:4560,conv:912,cac:66,cvr:0.200},
+  {name:"Summer Campaign",ch:"Search Ads",q:"Q2",seg:"Retail",budget:52000,rev:1113300,leads:4125,conv:1237,cac:42,cvr:0.300},
+  {name:"Summer Campaign",ch:"Email",q:"Q2",seg:"Retail",budget:16000,rev:288000,leads:24000,conv:2880,cac:6,cvr:0.120},
+  {name:"Summer Campaign",ch:"Display Ads",q:"Q2",seg:"Retail",budget:28000,rev:74400,leads:930,conv:93,cac:301,cvr:0.100},
+  {name:"Back to School",ch:"Social Media",q:"Q2",seg:"Education",budget:42000,rev:374400,leads:3120,conv:624,cac:67,cvr:0.200},
+  {name:"Back to School",ch:"Search Ads",q:"Q2",seg:"Education",budget:35000,rev:742500,leads:2750,conv:825,cac:42,cvr:0.300},
+  {name:"Back to School",ch:"Email",q:"Q2",seg:"Education",budget:10000,rev:108000,leads:15000,conv:1200,cac:8,cvr:0.080},
+  {name:"SaaS Product Demo",ch:"Search Ads",q:"Q2",seg:"Technology",budget:88000,rev:1760000,leads:8800,conv:1760,cac:50,cvr:0.200},
+  {name:"SaaS Product Demo",ch:"Email",q:"Q2",seg:"Technology",budget:22000,rev:3300000,leads:33000,conv:3300,cac:7,cvr:0.100},
+  {name:"SaaS Product Demo",ch:"LinkedIn",q:"Q2",seg:"Technology",budget:75000,rev:394000,leads:1968,conv:394,cac:190,cvr:0.200},
+  {name:"B2B Lead Generation",ch:"LinkedIn",q:"Q2",seg:"B2B Services",budget:90000,rev:1008000,leads:2520,conv:504,cac:179,cvr:0.200},
+  {name:"B2B Lead Generation",ch:"Email",q:"Q2",seg:"B2B Services",budget:28000,rev:420000,leads:16800,conv:840,cac:33,cvr:0.050},
+  {name:"Fall Product Launch",ch:"Social Media",q:"Q3",seg:"Technology",budget:75000,rev:540000,leads:6000,conv:900,cac:83,cvr:0.150},
+  {name:"Fall Product Launch",ch:"Search Ads",q:"Q3",seg:"Technology",budget:82000,rev:630000,leads:5250,conv:1050,cac:78,cvr:0.200},
+  {name:"Fall Product Launch",ch:"Email",q:"Q3",seg:"Technology",budget:20000,rev:216000,leads:30000,conv:2400,cac:8,cvr:0.080},
+  {name:"Fall Product Launch",ch:"Influencer",q:"Q3",seg:"Technology",budget:110000,rev:600000,leads:10000,conv:1000,cac:110,cvr:0.100},
+  {name:"Holiday Preview",ch:"Social Media",q:"Q3",seg:"Retail",budget:70000,rev:756000,leads:5400,conv:1080,cac:65,cvr:0.200},
+  {name:"Holiday Preview",ch:"Email",q:"Q3",seg:"Retail",budget:18000,rev:324000,leads:27000,conv:3240,cac:6,cvr:0.120},
+  {name:"Healthcare Awareness",ch:"Search Ads",q:"Q3",seg:"Healthcare",budget:55000,rev:700000,leads:3500,conv:700,cac:79,cvr:0.200},
+  {name:"Healthcare Awareness",ch:"Email",q:"Q3",seg:"Healthcare",budget:15000,rev:135000,leads:22500,conv:1350,cac:11,cvr:0.060},
+  {name:"B2B Fall Series",ch:"LinkedIn",q:"Q3",seg:"B2B Services",budget:95000,rev:1152000,leads:2880,conv:576,cac:165,cvr:0.200},
+  {name:"Holiday Mega Campaign",ch:"Social Media",q:"Q4",seg:"Retail",budget:120000,rev:2880000,leads:9600,conv:2880,cac:42,cvr:0.300},
+  {name:"Holiday Mega Campaign",ch:"Search Ads",q:"Q4",seg:"Retail",budget:105000,rev:4200000,leads:8750,conv:3500,cac:30,cvr:0.400},
+  {name:"Holiday Mega Campaign",ch:"Email",q:"Q4",seg:"Retail",budget:35000,rev:1008000,leads:52500,conv:8400,cac:4,cvr:0.160},
+  {name:"Holiday Mega Campaign",ch:"Display Ads",q:"Q4",seg:"Retail",budget:55000,rev:432000,leads:1800,conv:360,cac:153,cvr:0.200},
+  {name:"Holiday Mega Campaign",ch:"Influencer",q:"Q4",seg:"Retail",budget:150000,rev:3600000,leads:15000,conv:3000,cac:50,cvr:0.200},
+  {name:"Year End Tech Deals",ch:"Social Media",q:"Q4",seg:"Technology",budget:85000,rev:594000,leads:6600,conv:990,cac:86,cvr:0.150},
+  {name:"Year End Tech Deals",ch:"Search Ads",q:"Q4",seg:"Technology",budget:92000,rev:690000,leads:5750,conv:1150,cac:80,cvr:0.200},
+  {name:"Year End Tech Deals",ch:"Email",q:"Q4",seg:"Technology",budget:25000,rev:270000,leads:37500,conv:3000,cac:8,cvr:0.080},
+  {name:"New Year B2B Push",ch:"LinkedIn",q:"Q4",seg:"B2B Services",budget:100000,rev:1248000,leads:3120,conv:624,cac:160,cvr:0.200},
+  {name:"New Year B2B Push",ch:"Email",q:"Q4",seg:"B2B Services",budget:30000,rev:450000,leads:18000,conv:900,cac:33,cvr:0.050},
+  {name:"Healthcare Q4",ch:"Search Ads",q:"Q4",seg:"Healthcare",budget:62000,rev:800000,leads:4000,conv:800,cac:78,cvr:0.200},
+  {name:"Healthcare Q4",ch:"Email",q:"Q4",seg:"Healthcare",budget:18000,rev:162000,leads:27000,conv:1620,cac:11,cvr:0.060},
+];
+
+const chColors = {
+  "Email":"#00897B","Search Ads":"#1565C0","Social Media":"#5E35B1",
+  "Display Ads":"#C62828","LinkedIn":"#0D47A1","Influencer":"#E65100"
+};
+
+function getFiltered() {
+  const seg = document.getElementById('segFilter').value;
+  const q = document.getElementById('qFilter').value;
+  const ch = document.getElementById('chFilter').value;
+  return campaigns.filter(c =>
+    (seg==='All'||c.seg===seg) &&
+    (q==='All'||c.q===q) &&
+    (ch==='All'||c.ch===ch)
+  );
+}
+
+let charts = {};
+function destroyAll() { Object.values(charts).forEach(c=>c&&c.destroy()); charts={}; }
+
+function roi(c) { return ((c.rev-c.budget)/c.budget*100); }
+
+function updateKPIs(data) {
+  const totalRev = data.reduce((s,c)=>s+c.rev,0);
+  const totalBudget = data.reduce((s,c)=>s+c.budget,0);
+  const blendedROI = ((totalRev-totalBudget)/totalBudget*100);
+  document.getElementById('kRev').textContent = '$'+Math.round(totalRev/1000000*10)/10+'M';
+  document.getElementById('kBudget').textContent = '$'+Math.round(totalBudget/1000)+'K';
+  document.getElementById('kROI').textContent = Math.round(blendedROI)+'%';
+  document.getElementById('kROIBadge').textContent = blendedROI > 500 ? '✓ Excellent' : blendedROI > 200 ? 'Good' : 'Below avg';
+  document.getElementById('kROIBadge').className = 'kpi-badge ' + (blendedROI > 500 ? 'badge-g' : blendedROI > 200 ? 'badge-a' : 'badge-r');
+
+  const channels = [...new Set(data.map(c=>c.ch))];
+  const bestCh = channels.sort((a,b) => {
+    const ra = data.filter(c=>c.ch===a).reduce((s,c)=>s+(roi(c)),0)/data.filter(c=>c.ch===a).length;
+    const rb = data.filter(c=>c.ch===b).reduce((s,c)=>s+(roi(c)),0)/data.filter(c=>c.ch===b).length;
+    return rb - ra;
+  })[0];
+  document.getElementById('kBestCh').textContent = bestCh||'—';
+
+  const quarters = ['Q1','Q2','Q3','Q4'];
+  const bestQ = quarters.sort((a,b) => data.filter(c=>c.q===b).reduce((s,c)=>s+c.rev,0) - data.filter(c=>c.q===a).reduce((s,c)=>s+c.rev,0))[0];
+  document.getElementById('kBestQ').textContent = bestQ||'—';
+  document.getElementById('kBestQSub').textContent = '$'+Math.round(data.filter(c=>c.q===bestQ).reduce((s,c)=>s+c.rev,0)/1000)+'K revenue';
+}
+
+function buildROIByChannel(data) {
+  const ctx = document.getElementById('roiByChannel').getContext('2d');
+  const channels = [...new Set(campaigns.map(c=>c.ch))];
+  const vals = channels.map(ch => {
+    const grp = data.filter(c=>c.ch===ch);
+    return grp.length ? Math.round(grp.reduce((s,c)=>s+roi(c),0)/grp.length) : 0;
+  });
+  const bg = vals.map(v => v > 800 ? '#00897BCC' : v > 200 ? '#FFA000CC' : '#C62828CC');
+  charts.roi = new Chart(ctx,{type:'bar',data:{labels:channels,datasets:[{data:vals,backgroundColor:bg,borderWidth:1.5,borderRadius:5}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:v=>`Avg ROI: ${v.raw}%`}}},scales:{x:{ticks:{callback:v=>v+'%'}}}}});
+}
+
+function buildBudgetVsRev(data) {
+  const ctx = document.getElementById('budgetVsRev').getContext('2d');
+  const channels = [...new Set(campaigns.map(c=>c.ch))];
+  const budgets = channels.map(ch=>data.filter(c=>c.ch===ch).reduce((s,c)=>s+c.budget,0)/1000);
+  const revs = channels.map(ch=>data.filter(c=>c.ch===ch).reduce((s,c)=>s+c.rev,0)/1000);
+  charts.bvr = new Chart(ctx,{type:'bar',data:{labels:channels,datasets:[{label:'Budget ($K)',data:budgets,backgroundColor:'#B2DFDB',borderRadius:4},{label:'Revenue ($K)',data:revs,backgroundColor:channels.map(ch=>chColors[ch]+'CC'),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:11}}},tooltip:{callbacks:{label:v=>`${v.dataset.label}: $${v.raw.toFixed(0)}K`}}},scales:{y:{ticks:{callback:v=>'$'+v+'K'}}}}});
+}
+
+function buildBudgetByQ(data) {
+  const ctx = document.getElementById('budgetByQ').getContext('2d');
+  const quarters = ['Q1','Q2','Q3','Q4'];
+  const channels = [...new Set(campaigns.map(c=>c.ch))];
+  const datasets = channels.map(ch=>({
+    label:ch,
+    data:quarters.map(q=>data.filter(c=>c.ch===ch&&c.q===q).reduce((s,c)=>s+c.budget,0)/1000),
+    backgroundColor:chColors[ch]+'CC', stack:'a'
+  }));
+  charts.bq = new Chart(ctx,{type:'bar',data:{labels:quarters,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:10},boxWidth:10}},tooltip:{callbacks:{label:v=>`${v.dataset.label}: $${v.raw.toFixed(0)}K`}}},scales:{y:{ticks:{callback:v=>'$'+v+'K'}},x:{stacked:true},y2:{stacked:true}}}});
+}
+
+function buildCAC(data) {
+  const ctx = document.getElementById('cacChart').getContext('2d');
+  const channels = [...new Set(campaigns.map(c=>c.ch))];
+  const cacs = channels.map(ch=>{ const g=data.filter(c=>c.ch===ch); return g.length?Math.round(g.reduce((s,c)=>s+c.cac,0)/g.length):0; });
+  const bg = cacs.map(v=>v<50?'#00897BCC':v<150?'#FFA000CC':'#C62828CC');
+  charts.cac = new Chart(ctx,{type:'bar',data:{labels:channels,datasets:[{data:cacs,backgroundColor:bg,borderWidth:1.5,borderRadius:5}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:v=>`Avg CAC: $${v.raw}`}}}}});
+}
+
+function buildCampaignTable(data) {
+  const sorted = [...data].sort((a,b)=>roi(b)-roi(a));
+  const maxROI = Math.max(...sorted.map(c=>roi(c)));
+  document.getElementById('campaignBody').innerHTML = sorted.map(c=>{
+    const r = roi(c);
+    const barW = Math.round(r/maxROI*120);
+    const barColor = r>800?'#00897B':r>200?'#FFA000':'#C62828';
+    const tag = r>800?'<span class="tag tag-g">Excellent</span>':r>200?'<span class="tag tag-a">Good</span>':'<span class="tag tag-r">Poor</span>';
+    return `<tr>
+      <td>${c.name}</td>
+      <td><span style="color:${chColors[c.ch]||'#333'};font-weight:600">${c.ch}</span></td>
+      <td>${c.q}</td><td>${c.seg}</td>
+      <td>$${Math.round(c.budget/1000)}K</td>
+      <td>$${Math.round(c.rev/1000)}K</td>
+      <td><div class="roi-bar-wrap"><div class="roi-bar" style="width:${barW}px;background:${barColor}"></div>${Math.round(r)}%</div></td>
+      <td>$${c.cac}</td>
+      <td>${(c.cvr*100).toFixed(1)}%</td>
+      <td>${tag}</td>
+    </tr>`;
+  }).join('');
+}
+
+function updateWhatIf() {
+  const ch = document.getElementById('wiChannel').value;
+  const pct = parseInt(document.getElementById('wiBudgetSlider').value);
+  document.getElementById('wiPctLabel').textContent = (pct>=0?'+':'')+pct+'%';
+  const chData = campaigns.filter(c=>c.ch===ch);
+  if(!chData.length) return;
+  const avgROI = chData.reduce((s,c)=>s+roi(c),0)/chData.length/100;
+  const totalBudget = chData.reduce((s,c)=>s+c.budget,0);
+  const delta = totalBudget * pct/100;
+  const projRevDelta = delta * avgROI;
+  const dir = pct >= 0 ? 'increase' : 'decrease';
+  const revDir = projRevDelta >= 0 ? 'gain' : 'loss';
+  document.getElementById('whatIfResult').innerHTML =
+    `<strong>${ch}</strong> currently spends <strong>$${Math.round(totalBudget/1000)}K</strong> with average ROI of <strong>${Math.round(avgROI*100)}%</strong>.<br>
+    A <strong>${Math.abs(pct)}% ${dir}</strong> in budget ($${Math.abs(Math.round(delta/1000))}K) would project an estimated revenue <strong style="color:${projRevDelta>=0?'var(--teal)':'var(--red)'}">${revDir} of $${Math.round(Math.abs(projRevDelta)/1000)}K</strong>.<br>
+    <small style="color:var(--muted)">Projection based on historical channel ROI. Actual results may vary.</small>`;
+}
+
+function updateAll() {
+  const data = getFiltered();
+  destroyAll();
+  updateKPIs(data);
+  buildROIByChannel(data);
+  buildBudgetVsRev(data);
+  buildBudgetByQ(data);
+  buildCAC(data);
+  buildCampaignTable(data);
+  updateWhatIf();
+}
+updateAll();
+</script>
+</body>
+</html>

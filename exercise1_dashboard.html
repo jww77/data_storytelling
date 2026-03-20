@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RetailCo H1 Sales Performance Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --blue: #1E3A5F; --blue-mid: #2E75B6; --blue-light: #E8F4FD;
+    --green: #1A7F4B; --green-light: #D4EDDA;
+    --orange: #C25E00; --orange-light: #FFF3CD;
+    --red: #C0392B; --red-light: #FADBD8;
+    --gray: #F5F7FA; --border: #DDE3EC; --text: #1a2332; --muted: #6b7a90;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #EEF2F7; color: var(--text); }
+
+  /* Header */
+  .header { background: linear-gradient(135deg, #0A1628 0%, #1E3A5F 50%, #2E75B6 100%); padding: 32px 40px; color: white; }
+  .header h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; }
+  .header p { font-size: 14px; color: #9BBCD8; margin-top: 4px; }
+  .header-meta { display: flex; gap: 24px; margin-top: 12px; flex-wrap: wrap; }
+  .header-meta span { font-size: 12px; color: #7BAFD4; background: rgba(255,255,255,0.08); padding: 4px 12px; border-radius: 20px; }
+
+  /* Story Banner */
+  .story-banner { background: #0D4F3C; border-left: 5px solid #2ECC71; padding: 16px 24px; margin: 24px 40px; border-radius: 6px; }
+  .story-banner h2 { font-size: 15px; color: #2ECC71; font-weight: 700; margin-bottom: 6px; }
+  .story-banner p { font-size: 13px; color: #A8E6C8; line-height: 1.6; }
+
+  /* KPI Row */
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; padding: 0 40px 24px; }
+  .kpi { background: white; border-radius: 10px; padding: 20px; border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+  .kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; }
+  .kpi-value { font-size: 26px; font-weight: 800; color: var(--blue); margin: 6px 0 4px; }
+  .kpi-sub { font-size: 12px; color: var(--muted); }
+  .kpi-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; margin-top: 4px; }
+  .badge-green { background: var(--green-light); color: var(--green); }
+  .badge-blue { background: var(--blue-light); color: var(--blue-mid); }
+  .badge-orange { background: var(--orange-light); color: var(--orange); }
+
+  /* Controls */
+  .controls { padding: 0 40px 24px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  .controls label { font-size: 13px; font-weight: 600; color: var(--blue); }
+  .controls select { border: 1.5px solid var(--border); border-radius: 6px; padding: 8px 14px; font-size: 13px; color: var(--text); background: white; cursor: pointer; outline: none; }
+  .controls select:focus { border-color: var(--blue-mid); }
+
+  /* Grid */
+  .grid { display: grid; gap: 20px; padding: 0 40px 40px; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .card { background: white; border-radius: 10px; padding: 24px; border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+  .card-full { grid-column: 1 / -1; }
+  .card h3 { font-size: 14px; font-weight: 700; color: var(--blue); margin-bottom: 4px; }
+  .card .chart-sub { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+  .chart-wrap { position: relative; height: 260px; }
+  .chart-wrap-lg { position: relative; height: 320px; }
+
+  /* Insights table */
+  .insights-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .insight-card { background: var(--gray); border-radius: 8px; padding: 16px; border-left: 4px solid var(--blue-mid); }
+  .insight-card.warn { border-left-color: var(--orange); }
+  .insight-card.good { border-left-color: var(--green); }
+  .insight-card h4 { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .insight-card p { font-size: 13px; line-height: 1.5; color: var(--text); }
+  .insight-card .highlight { font-weight: 700; color: var(--blue); }
+
+  /* Perf table */
+  table.perf { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.perf th { background: var(--blue); color: white; padding: 10px 12px; text-align: left; font-weight: 600; font-size: 12px; }
+  table.perf td { padding: 9px 12px; border-bottom: 1px solid var(--border); }
+  table.perf tr:hover td { background: var(--blue-light); }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .tag-g { background: var(--green-light); color: var(--green); }
+  .tag-r { background: var(--red-light); color: var(--red); }
+  .tag-y { background: var(--orange-light); color: var(--orange); }
+
+  @media (max-width: 900px) {
+    .kpi-row, .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .header, .kpi-row, .grid, .controls, .story-banner { padding-left: 16px; padding-right: 16px; }
+    .card-full { grid-column: 1; }
+    .insights-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>RetailCo H1 2024 — Sales Performance Dashboard</h1>
+  <p>An interactive data story for Regional Sales Managers &amp; Executive Leadership</p>
+  <div class="header-meta">
+    <span>January – June 2024</span>
+    <span>4 Regions</span>
+    <span>3 Product Categories</span>
+    <span>72 Data Points</span>
+  </div>
+</div>
+
+<div class="story-banner">
+  <h2>📊 The Central Story</h2>
+  <p>East Region outperformed every other region by 18% in total revenue, while Home &amp; Garden surged 72% from January to June — driven by seasonal demand and marketing efficiency. However, <strong style="color:#F39C12;">West Region Electronics missed targets in 5 of 6 months</strong>, representing a $87K revenue gap that demands strategic attention heading into H2.</p>
+</div>
+
+<div class="kpi-row" id="kpiRow">
+  <div class="kpi">
+    <div class="kpi-label">Total H1 Revenue</div>
+    <div class="kpi-value" id="kpiRevenue">$0</div>
+    <div class="kpi-sub">Across all regions &amp; categories</div>
+    <span class="kpi-badge badge-green" id="kpiBadge1">Loading...</span>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Target Achievement</div>
+    <div class="kpi-value" id="kpiTarget">0%</div>
+    <div class="kpi-sub">Revenue vs target</div>
+    <span class="kpi-badge badge-blue" id="kpiBadge2">6-month period</span>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Best Region</div>
+    <div class="kpi-value" id="kpiBestRegion">East</div>
+    <div class="kpi-sub" id="kpiBestRegionSub">$0 total</div>
+    <span class="kpi-badge badge-green">Top Performer</span>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Fastest Growing</div>
+    <div class="kpi-value">Home & Garden</div>
+    <div class="kpi-sub">+72% Jan → Jun</div>
+    <span class="kpi-badge badge-orange">Trending Up</span>
+  </div>
+</div>
+
+<div class="controls">
+  <label>Filter by Region:</label>
+  <select id="regionFilter" onchange="updateCharts()">
+    <option value="All">All Regions</option>
+    <option value="North">North</option>
+    <option value="South">South</option>
+    <option value="East">East</option>
+    <option value="West">West</option>
+  </select>
+  <label>Filter by Category:</label>
+  <select id="categoryFilter" onchange="updateCharts()">
+    <option value="All">All Categories</option>
+    <option value="Electronics">Electronics</option>
+    <option value="Apparel">Apparel</option>
+    <option value="Home & Garden">Home & Garden</option>
+  </select>
+</div>
+
+<div class="grid grid-2">
+  <div class="card">
+    <h3>Monthly Revenue by Region</h3>
+    <div class="chart-sub">Grouped bars showing all 4 regions across 6 months</div>
+    <div class="chart-wrap"><canvas id="revenueByRegion"></canvas></div>
+  </div>
+  <div class="card">
+    <h3>Revenue Trend by Product Category</h3>
+    <div class="chart-sub">Line chart with target line overlay</div>
+    <div class="chart-wrap"><canvas id="categoryTrend"></canvas></div>
+  </div>
+</div>
+
+<div class="grid grid-3">
+  <div class="card">
+    <h3>Revenue Share by Category</h3>
+    <div class="chart-sub">Full H1 period distribution</div>
+    <div class="chart-wrap"><canvas id="categoryShare"></canvas></div>
+  </div>
+  <div class="card" style="grid-column: span 2">
+    <h3>Revenue vs Target by Region</h3>
+    <div class="chart-sub">How each region tracked against its 6-month target</div>
+    <div class="chart-wrap"><canvas id="vsTarget"></canvas></div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card card-full">
+    <h3>Top & Bottom Performers — Region + Category Combinations</h3>
+    <div class="chart-sub">Identifying where to invest and where to investigate</div>
+    <table class="perf" id="perfTable">
+      <thead><tr><th>Region</th><th>Category</th><th>Total H1 Revenue</th><th>vs Target</th><th>Growth Jan→Jun</th><th>Status</th></tr></thead>
+      <tbody id="perfBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card card-full">
+    <h3>🔍 Key Data Story Insights</h3>
+    <div style="height:12px"></div>
+    <div class="insights-grid">
+      <div class="insight-card good">
+        <h4>🏆 Star Performer</h4>
+        <p>East Region Apparel generated <span class="highlight">$531K in H1</span> — 29% above target. Monthly growth accelerated from $69K in January to $105K in May. This is the blueprint for other regions.</p>
+      </div>
+      <div class="insight-card warn">
+        <h4>⚠️ Watch Zone</h4>
+        <p>West Region Electronics missed its monthly target in <span class="highlight">5 of 6 months</span>, accumulating a $87,000 shortfall. Potential causes: pricing, competition, or insufficient marketing spend.</p>
+      </div>
+      <div class="insight-card good">
+        <h4>📈 Biggest Trend</h4>
+        <p>Home &amp; Garden grew <span class="highlight">+72% from Jan to Jun</span> across all regions combined — driven by spring seasonal demand. Inventory and marketing for H2 should prioritize this category.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DATA ────────────────────────────────────────────────────────────────────
+const raw = [
+  ["Jan","North","Electronics",186000,175000],["Jan","South","Electronics",147000,150000],
+  ["Jan","East","Electronics",165000,160000],["Jan","West","Electronics",129000,140000],
+  ["Jan","North","Apparel",63000,60000],["Jan","South","Apparel",55500,58000],
+  ["Jan","East","Apparel",69000,65000],["Jan","West","Apparel",49500,52000],
+  ["Jan","North","Home & Garden",53400,50000],["Jan","South","Home & Garden",43200,45000],
+  ["Jan","East","Home & Garden",61200,58000],["Jan","West","Home & Garden",39000,40000],
+  ["Feb","North","Electronics",177000,175000],["Feb","South","Electronics",138000,150000],
+  ["Feb","East","Electronics",157500,160000],["Feb","West","Electronics",121500,140000],
+  ["Feb","North","Apparel",72000,68000],["Feb","South","Apparel",63000,65000],
+  ["Feb","East","Apparel",79500,72000],["Feb","West","Apparel",57000,58000],
+  ["Feb","North","Home & Garden",46800,48000],["Feb","South","Home & Garden",37800,42000],
+  ["Feb","East","Home & Garden",53400,54000],["Feb","West","Home & Garden",34200,38000],
+  ["Mar","North","Electronics",202500,185000],["Mar","South","Electronics",162000,158000],
+  ["Mar","East","Electronics",183000,170000],["Mar","West","Electronics",142500,148000],
+  ["Mar","North","Apparel",84000,75000],["Mar","South","Apparel",75000,72000],
+  ["Mar","East","Apparel",93000,80000],["Mar","West","Apparel",66000,65000],
+  ["Mar","North","Home & Garden",72000,65000],["Mar","South","Home & Garden",58800,60000],
+  ["Mar","East","Home & Garden",82800,75000],["Mar","West","Home & Garden",52800,55000],
+  ["Apr","North","Electronics",213000,190000],["Apr","South","Electronics",172500,165000],
+  ["Apr","East","Electronics",193500,178000],["Apr","West","Electronics",153000,155000],
+  ["Apr","North","Apparel",79500,78000],["Apr","South","Apparel",71400,74000],
+  ["Apr","East","Apparel",88500,82000],["Apr","West","Apparel",63000,68000],
+  ["Apr","North","Home & Garden",87000,80000],["Apr","South","Home & Garden",70800,72000],
+  ["Apr","East","Home & Garden",99000,88000],["Apr","West","Home & Garden",63000,65000],
+  ["May","North","Electronics",237000,200000],["May","South","Electronics",192000,175000],
+  ["May","East","Electronics",213000,188000],["May","West","Electronics",168000,162000],
+  ["May","North","Apparel",96000,88000],["May","South","Apparel",85500,84000],
+  ["May","East","Apparel",105000,92000],["May","West","Apparel",76500,78000],
+  ["May","North","Home & Garden",109200,100000],["May","South","Home & Garden",89400,90000],
+  ["May","East","Home & Garden",124800,108000],["May","West","Home & Garden",79200,80000],
+  ["Jun","North","Electronics",247500,205000],["Jun","South","Electronics",201000,180000],
+  ["Jun","East","Electronics",223500,195000],["Jun","West","Electronics",177000,168000],
+  ["Jun","North","Apparel",87000,85000],["Jun","South","Apparel",78000,80000],
+  ["Jun","East","Apparel",96000,90000],["Jun","West","Apparel",69600,75000],
+  ["Jun","North","Home & Garden",126000,115000],["Jun","South","Home & Garden",103200,105000],
+  ["Jun","East","Home & Garden",144000,122000],["Jun","West","Home & Garden",91800,92000],
+];
+const months = ["Jan","Feb","Mar","Apr","May","Jun"];
+const regions = ["North","South","East","West"];
+const categories = ["Electronics","Apparel","Home & Garden"];
+const regionColors = { North:"#2E75B6", South:"#1A7F4B", East:"#8B5CF6", West:"#C25E00" };
+const catColors = { "Electronics":"#2E75B6", "Apparel":"#1A7F4B", "Home & Garden":"#C25E00" };
+
+function filter(region, category) {
+  return raw.filter(r =>
+    (region === "All" || r[1] === region) &&
+    (category === "All" || r[2] === category)
+  );
+}
+
+let charts = {};
+function destroyAll() { Object.values(charts).forEach(c => c && c.destroy()); charts = {}; }
+
+function updateKPIs(data) {
+  const total = data.reduce((s,r)=>s+r[3],0);
+  const target = data.reduce((s,r)=>s+r[4],0);
+  document.getElementById('kpiRevenue').textContent = '$'+Math.round(total/1000)+'K';
+  document.getElementById('kpiTarget').textContent = (total/target*100).toFixed(1)+'%';
+  document.getElementById('kpiBadge1').textContent = total >= target ? '✓ Above Target' : '↓ Below Target';
+  document.getElementById('kpiBadge1').className = 'kpi-badge ' + (total >= target ? 'badge-green' : 'badge-orange');
+
+  // best region
+  const byRegion = {};
+  regions.forEach(r => { byRegion[r] = raw.filter(d=>d[1]===r).reduce((s,d)=>s+d[3],0); });
+  const best = Object.entries(byRegion).sort((a,b)=>b[1]-a[1])[0];
+  document.getElementById('kpiBestRegion').textContent = best[0];
+  document.getElementById('kpiBestRegionSub').textContent = '$'+Math.round(best[1]/1000)+'K total';
+}
+
+function buildRevenueByRegion(data) {
+  const ctx = document.getElementById('revenueByRegion').getContext('2d');
+  const reg = document.getElementById('regionFilter').value;
+  const displayRegions = reg === 'All' ? regions : [reg];
+  const datasets = displayRegions.map(r => ({
+    label: r,
+    data: months.map(m => data.filter(d=>d[0]===m&&d[1]===r).reduce((s,d)=>s+d[3],0)/1000),
+    backgroundColor: regionColors[r]+'CC',
+    borderColor: regionColors[r],
+    borderWidth: 1.5, borderRadius: 4
+  }));
+  charts.rev = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: months, datasets },
+    options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{position:'top',labels:{font:{size:11}}}, tooltip:{callbacks:{label:v=>`${v.dataset.label}: $${v.raw.toFixed(0)}K`}} }, scales:{ y:{ticks:{callback:v=>'$'+v+'K'}} } }
+  });
+}
+
+function buildCategoryTrend(data) {
+  const ctx = document.getElementById('categoryTrend').getContext('2d');
+  const cat = document.getElementById('categoryFilter').value;
+  const displayCats = cat === 'All' ? categories : [cat];
+  const datasets = [
+    ...displayCats.map(c => ({
+      label: c, type:'line',
+      data: months.map(m => data.filter(d=>d[0]===m&&d[2]===c).reduce((s,d)=>s+d[3],0)/1000),
+      borderColor: catColors[c], backgroundColor: catColors[c]+'22',
+      tension: 0.4, fill: false, pointRadius: 5, borderWidth: 2.5
+    })),
+    {
+      label:'Target',type:'line',
+      data: months.map(m => data.filter(d=>d[0]===m).reduce((s,d)=>s+d[4],0)/1000),
+      borderColor:'#AAA', borderDash:[6,4], borderWidth:1.5, fill:false, pointRadius:0, tension:0
+    }
+  ];
+  charts.cat = new Chart(ctx, {
+    type:'bar',data:{labels:months,datasets},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:11}}},tooltip:{callbacks:{label:v=>`${v.dataset.label}: $${v.raw.toFixed(0)}K`}}},scales:{y:{ticks:{callback:v=>'$'+v+'K'}}}}
+  });
+}
+
+function buildCategoryShare(data) {
+  const ctx = document.getElementById('categoryShare').getContext('2d');
+  const totals = categories.map(c => data.filter(d=>d[2]===c).reduce((s,d)=>s+d[3],0));
+  charts.share = new Chart(ctx, {
+    type:'doughnut',
+    data:{labels:categories,datasets:[{data:totals,backgroundColor:['#2E75B6','#1A7F4B','#C25E00'],borderWidth:2,borderColor:'white'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11}}},tooltip:{callbacks:{label:v=>`${v.label}: $${Math.round(v.raw/1000)}K (${(v.raw/totals.reduce((a,b)=>a+b)*100).toFixed(1)}%)`}}}}
+  });
+}
+
+function buildVsTarget(data) {
+  const ctx = document.getElementById('vsTarget').getContext('2d');
+  const reg = document.getElementById('regionFilter').value;
+  const displayRegions = reg === 'All' ? regions : [reg];
+  const actualData = displayRegions.map(r => data.filter(d=>d[1]===r).reduce((s,d)=>s+d[3],0)/1000);
+  const targetData = displayRegions.map(r => data.filter(d=>d[1]===r).reduce((s,d)=>s+d[4],0)/1000);
+  charts.target = new Chart(ctx, {
+    type:'bar',
+    data:{labels:displayRegions,datasets:[
+      {label:'Actual Revenue',data:actualData,backgroundColor:displayRegions.map(r=>regionColors[r]+'CC'),borderColor:displayRegions.map(r=>regionColors[r]),borderWidth:1.5,borderRadius:5},
+      {label:'Target',data:targetData,backgroundColor:'rgba(0,0,0,0)',borderColor:'#666',borderWidth:2,borderDash:[6,4],type:'bar'}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:11}}},tooltip:{callbacks:{label:v=>`${v.dataset.label}: $${v.raw.toFixed(0)}K`}}},scales:{y:{ticks:{callback:v=>'$'+v+'K'}}}}
+  });
+}
+
+function buildPerfTable(data) {
+  const tbody = document.getElementById('perfBody');
+  const combos = [];
+  regions.forEach(r => categories.forEach(c => {
+    const rows = data.filter(d=>d[1]===r&&d[2]===c);
+    if(!rows.length) return;
+    const rev = rows.reduce((s,d)=>s+d[3],0);
+    const tgt = rows.reduce((s,d)=>s+d[4],0);
+    const jan = rows.find(d=>d[0]==='Jan');
+    const jun = rows.find(d=>d[0]==='Jun');
+    const growth = jan && jun ? ((jun[3]-jan[3])/jan[3]*100) : 0;
+    combos.push({region:r, cat:c, rev, tgt, pct:rev/tgt*100, growth});
+  }));
+  combos.sort((a,b)=>b.rev-a.rev);
+  tbody.innerHTML = combos.map((c,i)=>{
+    const status = c.pct >= 105 ? '<span class="tag tag-g">Above Target</span>' : c.pct >= 95 ? '<span class="tag tag-y">On Track</span>' : '<span class="tag tag-r">Below Target</span>';
+    const growthStr = c.growth >= 0 ? `+${c.growth.toFixed(0)}%` : `${c.growth.toFixed(0)}%`;
+    const growthTag = c.growth >= 30 ? `<span class="tag tag-g">${growthStr}</span>` : c.growth >= 0 ? `<span class="tag tag-y">${growthStr}</span>` : `<span class="tag tag-r">${growthStr}</span>`;
+    return `<tr style="${i===0?'background:#f0faf5':''}"><td>${c.region}</td><td>${c.cat}</td><td>$${Math.round(c.rev/1000)}K</td><td>${c.pct.toFixed(1)}%</td><td>${growthTag}</td><td>${status}</td></tr>`;
+  }).join('');
+}
+
+function updateCharts() {
+  const region = document.getElementById('regionFilter').value;
+  const category = document.getElementById('categoryFilter').value;
+  const data = filter(region, category);
+  destroyAll();
+  updateKPIs(data);
+  buildRevenueByRegion(data);
+  buildCategoryTrend(data);
+  buildCategoryShare(data);
+  buildVsTarget(data);
+  buildPerfTable(data);
+}
+
+updateCharts();
+</script>
+</body>
+</html>

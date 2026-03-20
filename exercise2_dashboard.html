@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Student Academic Performance Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --purple: #5E35B1; --purple-mid: #7E57C2; --purple-light: #EDE7F6;
+    --blue: #1565C0; --blue-light: #E3F2FD;
+    --green: #1B7F4B; --green-light: #E8F5E9;
+    --orange: #E65100; --orange-light: #FFF3E0;
+    --red: #C62828; --red-light: #FFEBEE;
+    --gray: #F5F7FA; --border: #E0E0E0; --text: #1a1a2e; --muted: #666;
+  }
+  * { box-sizing: border-box; margin:0; padding:0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #F0EEF8; color: var(--text); }
+
+  .header { background: linear-gradient(135deg, #1A0845 0%, #4A148C 50%, #7B1FA2 100%); padding: 32px 40px; color: white; }
+  .header h1 { font-size: 26px; font-weight: 800; }
+  .header p { font-size: 13px; color: #CE93D8; margin-top: 4px; }
+  .header-meta { display: flex; gap: 20px; margin-top: 12px; flex-wrap: wrap; }
+  .header-meta span { font-size: 12px; color: #BA68C8; background: rgba(255,255,255,0.1); padding: 4px 12px; border-radius: 20px; }
+
+  .story-banner { background: #1A0845; border-left: 5px solid #CE93D8; padding: 16px 24px; margin: 24px 40px; border-radius: 6px; }
+  .story-banner h2 { font-size: 14px; color: #CE93D8; font-weight: 700; margin-bottom: 6px; }
+  .story-banner p { font-size: 13px; color: #DCC8F0; line-height: 1.65; }
+
+  .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; padding: 0 40px 20px; }
+  .kpi { background: white; border-radius: 10px; padding: 18px; border: 1px solid var(--border); box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+  .kpi-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; }
+  .kpi-value { font-size: 24px; font-weight: 800; color: var(--purple); margin: 4px 0; }
+  .kpi-sub { font-size: 11px; color: var(--muted); }
+
+  .controls { padding: 0 40px 20px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; background: none; }
+  .controls label { font-size: 13px; font-weight: 600; color: var(--purple); }
+  .controls select { border: 1.5px solid var(--border); border-radius: 6px; padding: 7px 12px; font-size: 13px; background: white; cursor: pointer; }
+  .group-stats { background: white; border: 1.5px solid var(--purple-light); border-radius: 8px; padding: 10px 18px; display: flex; gap: 24px; margin-left: auto; }
+  .group-stats span { font-size: 12px; color: var(--muted); }
+  .group-stats strong { color: var(--purple); font-size: 14px; }
+
+  .grid { display: grid; gap: 18px; padding: 0 40px 40px; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .card { background: white; border-radius: 10px; padding: 22px; border: 1px solid var(--border); box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
+  .card-full { grid-column: 1 / -1; }
+  .card h3 { font-size: 14px; font-weight: 700; color: var(--purple); margin-bottom: 3px; }
+  .card-sub { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+  .chart-wrap { position: relative; height: 250px; }
+
+  table.students { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.students th { background: var(--purple); color: white; padding: 9px 10px; text-align: left; font-size: 11px; font-weight: 600; }
+  table.students td { padding: 8px 10px; border-bottom: 1px solid var(--border); cursor: pointer; }
+  table.students tr:hover td { background: var(--purple-light); }
+  .gpa-hi { color: var(--green); font-weight: 700; }
+  .gpa-mid { color: var(--orange); font-weight: 700; }
+  .gpa-lo { color: var(--red); font-weight: 700; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
+  .dot-g { background: var(--green); }
+  .dot-y { background: var(--orange); }
+  .dot-r { background: var(--red); }
+
+  .profile-modal { display: none; position: fixed; top:0;left:0;right:0;bottom:0; background: rgba(0,0,0,0.5); z-index: 999; align-items: center; justify-content: center; }
+  .profile-modal.open { display: flex; }
+  .profile-card { background: white; border-radius: 14px; padding: 30px; max-width: 480px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+  .profile-card h2 { font-size: 20px; color: var(--purple); border-bottom: 2px solid var(--purple-light); padding-bottom: 10px; margin-bottom: 16px; }
+  .prof-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .prof-item { background: var(--gray); border-radius: 6px; padding: 10px 14px; }
+  .prof-item label { font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: 600; display: block; }
+  .prof-item span { font-size: 16px; font-weight: 700; color: var(--text); }
+  .close-btn { margin-top: 18px; background: var(--purple); color: white; border: none; border-radius: 6px; padding: 10px 24px; font-size: 13px; font-weight: 600; cursor: pointer; width: 100%; }
+
+  .at-risk-banner { background: #FFF3CD; border: 1.5px solid #FFC107; border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; }
+  .at-risk-banner p { font-size: 13px; color: #5D4037; }
+
+  @media (max-width: 900px) {
+    .kpi-row, .grid-2, .grid-3 { grid-template-columns: 1fr 1fr; }
+    .header, .kpi-row, .grid, .controls, .story-banner { padding-left: 16px; padding-right: 16px; }
+    .card-full { grid-column: 1; }
+    .group-stats { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Student Academic Performance Dashboard</h1>
+  <p>Academic Affairs Committee &amp; Student Support Services — Institutional Analytics Report</p>
+  <div class="header-meta">
+    <span>60 Students</span><span>5 Departments</span><span>4 Year Levels</span><span>Academic Year 2024</span>
+  </div>
+</div>
+
+<div class="story-banner">
+  <h2>📚 Central Finding</h2>
+  <p><strong style="color:#F8BBD0;">Attendance rate is the single strongest predictor of academic success.</strong> Students with &ge;90% attendance average a GPA of 3.62, while those below 80% average just 2.71. Furthermore, students working part-time average 0.4 GPA points lower than their peers — an equity gap that warrants targeted intervention. Nursing consistently leads in GPA while Engineering shows the widest performance spread.</p>
+</div>
+
+<div class="kpi-row" id="kpiRow">
+  <div class="kpi"><div class="kpi-label">Avg GPA</div><div class="kpi-value" id="kAvgGPA">—</div><div class="kpi-sub" id="kStudents">All students</div></div>
+  <div class="kpi"><div class="kpi-label">Avg Attendance</div><div class="kpi-value" id="kAttend">—</div><div class="kpi-sub">Mean rate</div></div>
+  <div class="kpi"><div class="kpi-label">At-Risk Students</div><div class="kpi-value" id="kRisk">—</div><div class="kpi-sub">GPA &lt; 2.5 or Attend &lt; 75%</div></div>
+  <div class="kpi"><div class="kpi-label">On Scholarship</div><div class="kpi-value" id="kSchol">—</div><div class="kpi-sub">of filtered students</div></div>
+  <div class="kpi"><div class="kpi-label">Top Dept (GPA)</div><div class="kpi-value" id="kTopDept">—</div><div class="kpi-sub">Highest average GPA</div></div>
+</div>
+
+<div class="controls">
+  <label>Department:</label>
+  <select id="deptFilter" onchange="updateAll()">
+    <option value="All">All Departments</option>
+    <option>Computer Science</option><option>Business</option>
+    <option>Engineering</option><option>Liberal Arts</option><option>Nursing</option>
+  </select>
+  <label>Year Level:</label>
+  <select id="yearFilter" onchange="updateAll()">
+    <option value="All">All Years</option>
+    <option value="1">Year 1</option><option value="2">Year 2</option>
+    <option value="3">Year 3</option><option value="4">Year 4</option>
+  </select>
+  <label>GPA Range:</label>
+  <select id="gpaFilter" onchange="updateAll()">
+    <option value="All">All GPAs</option>
+    <option value="high">High (3.5+)</option>
+    <option value="mid">Mid (2.5–3.4)</option>
+    <option value="low">At-Risk (&lt;2.5)</option>
+  </select>
+  <div class="group-stats">
+    <span>Students shown: <strong id="countLabel">60</strong></span>
+    <span>Group Avg GPA: <strong id="groupGPA">—</strong></span>
+  </div>
+</div>
+
+<div class="grid grid-2">
+  <div class="card">
+    <h3>Average GPA by Department</h3>
+    <div class="card-sub">Ranked highest to lowest — click bar for details</div>
+    <div class="chart-wrap"><canvas id="gpaByDept"></canvas></div>
+  </div>
+  <div class="card">
+    <h3>Attendance Rate vs GPA (Scatter)</h3>
+    <div class="card-sub">Each dot = one student, colored by department</div>
+    <div class="chart-wrap"><canvas id="scatterPlot"></canvas></div>
+  </div>
+</div>
+
+<div class="grid grid-3">
+  <div class="card">
+    <h3>Scholarship Impact on GPA</h3>
+    <div class="card-sub">With vs without scholarship by dept</div>
+    <div class="chart-wrap"><canvas id="scholarGPA"></canvas></div>
+  </div>
+  <div class="card">
+    <h3>Part-Time Work vs GPA</h3>
+    <div class="card-sub">Does employment affect academic outcomes?</div>
+    <div class="chart-wrap"><canvas id="workGPA"></canvas></div>
+  </div>
+  <div class="card">
+    <h3>Study Hours vs GPA</h3>
+    <div class="card-sub">Weekly study hours distribution by grade band</div>
+    <div class="chart-wrap"><canvas id="studyGPA"></canvas></div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card card-full">
+    <h3>Student Explorer — Click a Row for Full Profile</h3>
+    <div class="card-sub">Sorted by GPA. <span class="dot dot-g"></span>High (3.5+) &nbsp;<span class="dot dot-y"></span>Mid (2.5–3.4) &nbsp;<span class="dot dot-r"></span>At-Risk (&lt;2.5)</div>
+    <div id="atRiskBanner" class="at-risk-banner" style="display:none">
+      <p>⚠️ <strong>At-Risk Students Visible:</strong> These students have GPA below 2.5 or attendance below 75%. Consider proactive outreach and academic support referrals.</p>
+    </div>
+    <div style="overflow-x:auto;max-height:380px;overflow-y:auto">
+      <table class="students">
+        <thead><tr>
+          <th>ID</th><th>Dept</th><th>Year</th><th>GPA</th><th>Attendance</th>
+          <th>Study Hrs</th><th>Scholarship</th><th>Part-Time</th><th>Tutoring</th><th>Mental Health</th>
+        </tr></thead>
+        <tbody id="studentBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Profile Modal -->
+<div class="profile-modal" id="profileModal" onclick="closeProfile(event)">
+  <div class="profile-card">
+    <h2 id="profTitle">Student Profile</h2>
+    <div class="prof-grid" id="profGrid"></div>
+    <button class="close-btn" onclick="closeModal()">Close</button>
+  </div>
+</div>
+
+<script>
+const students = [
+  {id:"S001",dept:"Computer Science",year:1,gender:"M",attend:92,gpa:3.2,scholarship:"No",partTime:"No",study:18,mental:7,tutoring:2,grade:"B"},
+  {id:"S002",dept:"Computer Science",year:1,gender:"F",attend:88,gpa:3.5,scholarship:"Yes",partTime:"No",study:22,mental:8,tutoring:4,grade:"A-"},
+  {id:"S003",dept:"Computer Science",year:1,gender:"M",attend:75,gpa:2.4,scholarship:"No",partTime:"Yes",study:12,mental:5,tutoring:0,grade:"C"},
+  {id:"S004",dept:"Computer Science",year:2,gender:"F",attend:95,gpa:3.8,scholarship:"Yes",partTime:"No",study:28,mental:9,tutoring:6,grade:"A"},
+  {id:"S005",dept:"Computer Science",year:2,gender:"M",attend:82,gpa:3.0,scholarship:"No",partTime:"Yes",study:16,mental:6,tutoring:1,grade:"B-"},
+  {id:"S006",dept:"Computer Science",year:2,gender:"F",attend:90,gpa:3.7,scholarship:"Yes",partTime:"No",study:25,mental:8,tutoring:5,grade:"A-"},
+  {id:"S007",dept:"Computer Science",year:3,gender:"M",attend:78,gpa:2.8,scholarship:"No",partTime:"Yes",study:15,mental:6,tutoring:1,grade:"C+"},
+  {id:"S008",dept:"Computer Science",year:3,gender:"F",attend:93,gpa:3.9,scholarship:"Yes",partTime:"No",study:30,mental:9,tutoring:7,grade:"A"},
+  {id:"S009",dept:"Computer Science",year:3,gender:"M",attend:85,gpa:3.3,scholarship:"No",partTime:"No",study:20,mental:7,tutoring:3,grade:"B+"},
+  {id:"S010",dept:"Computer Science",year:4,gender:"F",attend:97,gpa:4.0,scholarship:"Yes",partTime:"No",study:32,mental:10,tutoring:8,grade:"A+"},
+  {id:"S011",dept:"Business",year:1,gender:"M",attend:85,gpa:3.1,scholarship:"No",partTime:"Yes",study:15,mental:6,tutoring:1,grade:"B"},
+  {id:"S012",dept:"Business",year:1,gender:"F",attend:91,gpa:3.4,scholarship:"Yes",partTime:"No",study:20,mental:8,tutoring:3,grade:"B+"},
+  {id:"S013",dept:"Business",year:1,gender:"M",attend:70,gpa:2.2,scholarship:"No",partTime:"Yes",study:10,mental:4,tutoring:0,grade:"C-"},
+  {id:"S014",dept:"Business",year:2,gender:"F",attend:88,gpa:3.5,scholarship:"No",partTime:"No",study:21,mental:7,tutoring:4,grade:"A-"},
+  {id:"S015",dept:"Business",year:2,gender:"M",attend:80,gpa:2.9,scholarship:"No",partTime:"Yes",study:14,mental:6,tutoring:1,grade:"B-"},
+  {id:"S016",dept:"Business",year:2,gender:"F",attend:93,gpa:3.8,scholarship:"Yes",partTime:"No",study:26,mental:9,tutoring:5,grade:"A"},
+  {id:"S017",dept:"Business",year:3,gender:"M",attend:76,gpa:2.6,scholarship:"No",partTime:"Yes",study:13,mental:5,tutoring:0,grade:"C+"},
+  {id:"S018",dept:"Business",year:3,gender:"F",attend:90,gpa:3.6,scholarship:"Yes",partTime:"No",study:24,mental:8,tutoring:5,grade:"A-"},
+  {id:"S019",dept:"Business",year:3,gender:"M",attend:83,gpa:3.2,scholarship:"No",partTime:"No",study:18,mental:7,tutoring:2,grade:"B"},
+  {id:"S020",dept:"Business",year:4,gender:"F",attend:96,gpa:3.9,scholarship:"Yes",partTime:"No",study:31,mental:9,tutoring:7,grade:"A"},
+  {id:"S021",dept:"Engineering",year:1,gender:"M",attend:88,gpa:3.2,scholarship:"No",partTime:"No",study:20,mental:7,tutoring:2,grade:"B"},
+  {id:"S022",dept:"Engineering",year:1,gender:"F",attend:92,gpa:3.6,scholarship:"Yes",partTime:"No",study:25,mental:8,tutoring:5,grade:"A-"},
+  {id:"S023",dept:"Engineering",year:1,gender:"M",attend:72,gpa:2.3,scholarship:"No",partTime:"Yes",study:11,mental:4,tutoring:0,grade:"C-"},
+  {id:"S024",dept:"Engineering",year:2,gender:"M",attend:86,gpa:3.2,scholarship:"No",partTime:"No",study:19,mental:7,tutoring:2,grade:"B"},
+  {id:"S025",dept:"Engineering",year:2,gender:"F",attend:94,gpa:3.8,scholarship:"Yes",partTime:"No",study:29,mental:9,tutoring:6,grade:"A"},
+  {id:"S026",dept:"Engineering",year:2,gender:"M",attend:79,gpa:2.8,scholarship:"No",partTime:"Yes",study:14,mental:6,tutoring:1,grade:"C+"},
+  {id:"S027",dept:"Engineering",year:3,gender:"F",attend:96,gpa:3.9,scholarship:"Yes",partTime:"No",study:32,mental:10,tutoring:7,grade:"A"},
+  {id:"S028",dept:"Engineering",year:3,gender:"M",attend:81,gpa:3.0,scholarship:"No",partTime:"Yes",study:17,mental:6,tutoring:1,grade:"B-"},
+  {id:"S029",dept:"Engineering",year:3,gender:"F",attend:89,gpa:3.5,scholarship:"No",partTime:"No",study:23,mental:8,tutoring:4,grade:"A-"},
+  {id:"S030",dept:"Engineering",year:4,gender:"M",attend:93,gpa:3.8,scholarship:"Yes",partTime:"No",study:28,mental:9,tutoring:6,grade:"A"},
+  {id:"S031",dept:"Liberal Arts",year:1,gender:"F",attend:87,gpa:3.3,scholarship:"No",partTime:"No",study:17,mental:7,tutoring:2,grade:"B+"},
+  {id:"S032",dept:"Liberal Arts",year:1,gender:"M",attend:80,gpa:2.8,scholarship:"No",partTime:"Yes",study:13,mental:6,tutoring:0,grade:"C+"},
+  {id:"S033",dept:"Liberal Arts",year:1,gender:"F",attend:93,gpa:3.6,scholarship:"Yes",partTime:"No",study:24,mental:8,tutoring:5,grade:"A-"},
+  {id:"S034",dept:"Liberal Arts",year:2,gender:"M",attend:76,gpa:2.5,scholarship:"No",partTime:"Yes",study:12,mental:5,tutoring:0,grade:"C"},
+  {id:"S035",dept:"Liberal Arts",year:2,gender:"F",attend:91,gpa:3.5,scholarship:"No",partTime:"No",study:22,mental:8,tutoring:4,grade:"A-"},
+  {id:"S036",dept:"Liberal Arts",year:2,gender:"M",attend:84,gpa:3.1,scholarship:"No",partTime:"No",study:17,mental:7,tutoring:2,grade:"B"},
+  {id:"S037",dept:"Liberal Arts",year:3,gender:"F",attend:95,gpa:3.9,scholarship:"Yes",partTime:"No",study:30,mental:9,tutoring:7,grade:"A"},
+  {id:"S038",dept:"Liberal Arts",year:3,gender:"M",attend:78,gpa:2.7,scholarship:"No",partTime:"Yes",study:14,mental:5,tutoring:1,grade:"C+"},
+  {id:"S039",dept:"Liberal Arts",year:3,gender:"F",attend:88,gpa:3.4,scholarship:"No",partTime:"No",study:21,mental:8,tutoring:3,grade:"B+"},
+  {id:"S040",dept:"Liberal Arts",year:4,gender:"M",attend:86,gpa:3.3,scholarship:"No",partTime:"No",study:19,mental:7,tutoring:2,grade:"B+"},
+  {id:"S041",dept:"Nursing",year:1,gender:"F",attend:94,gpa:3.5,scholarship:"Yes",partTime:"No",study:24,mental:8,tutoring:5,grade:"A-"},
+  {id:"S042",dept:"Nursing",year:1,gender:"M",attend:82,gpa:3.1,scholarship:"No",partTime:"Yes",study:16,mental:6,tutoring:1,grade:"B"},
+  {id:"S043",dept:"Nursing",year:1,gender:"F",attend:89,gpa:3.4,scholarship:"No",partTime:"No",study:21,mental:8,tutoring:3,grade:"B+"},
+  {id:"S044",dept:"Nursing",year:2,gender:"F",attend:96,gpa:3.9,scholarship:"Yes",partTime:"No",study:30,mental:9,tutoring:7,grade:"A"},
+  {id:"S045",dept:"Nursing",year:2,gender:"M",attend:79,gpa:2.9,scholarship:"No",partTime:"Yes",study:15,mental:6,tutoring:1,grade:"B-"},
+  {id:"S046",dept:"Nursing",year:2,gender:"F",attend:91,gpa:3.7,scholarship:"Yes",partTime:"No",study:27,mental:9,tutoring:5,grade:"A-"},
+  {id:"S047",dept:"Nursing",year:3,gender:"F",attend:97,gpa:3.9,scholarship:"Yes",partTime:"No",study:31,mental:10,tutoring:8,grade:"A"},
+  {id:"S048",dept:"Nursing",year:3,gender:"M",attend:83,gpa:3.1,scholarship:"No",partTime:"No",study:18,mental:7,tutoring:2,grade:"B"},
+  {id:"S049",dept:"Nursing",year:3,gender:"F",attend:90,gpa:3.7,scholarship:"Yes",partTime:"No",study:26,mental:9,tutoring:5,grade:"A-"},
+  {id:"S050",dept:"Nursing",year:4,gender:"F",attend:98,gpa:4.0,scholarship:"Yes",partTime:"No",study:34,mental:10,tutoring:9,grade:"A+"},
+  {id:"S051",dept:"Computer Science",year:1,gender:"M",attend:68,gpa:2.0,scholarship:"No",partTime:"Yes",study:9,mental:3,tutoring:0,grade:"D+"},
+  {id:"S052",dept:"Computer Science",year:2,gender:"F",attend:84,gpa:3.2,scholarship:"No",partTime:"No",study:19,mental:7,tutoring:3,grade:"B"},
+  {id:"S053",dept:"Computer Science",year:3,gender:"M",attend:77,gpa:2.7,scholarship:"No",partTime:"Yes",study:13,mental:5,tutoring:1,grade:"C+"},
+  {id:"S054",dept:"Business",year:1,gender:"F",attend:89,gpa:3.3,scholarship:"No",partTime:"No",study:19,mental:8,tutoring:2,grade:"B+"},
+  {id:"S055",dept:"Business",year:2,gender:"M",attend:73,gpa:2.4,scholarship:"No",partTime:"Yes",study:11,mental:4,tutoring:0,grade:"C"},
+  {id:"S056",dept:"Business",year:3,gender:"F",attend:92,gpa:3.7,scholarship:"Yes",partTime:"No",study:25,mental:9,tutoring:5,grade:"A-"},
+  {id:"S057",dept:"Engineering",year:1,gender:"M",attend:71,gpa:2.2,scholarship:"No",partTime:"Yes",study:10,mental:4,tutoring:0,grade:"C-"},
+  {id:"S058",dept:"Engineering",year:2,gender:"F",attend:87,gpa:3.4,scholarship:"No",partTime:"No",study:21,mental:8,tutoring:3,grade:"B+"},
+  {id:"S059",dept:"Engineering",year:3,gender:"M",attend:80,gpa:2.9,scholarship:"No",partTime:"Yes",study:16,mental:6,tutoring:1,grade:"B-"},
+  {id:"S060",dept:"Liberal Arts",year:1,gender:"F",attend:90,gpa:3.5,scholarship:"No",partTime:"No",study:21,mental:8,tutoring:3,grade:"A-"},
+];
+
+const deptColors = {
+  "Computer Science":"#1565C0","Business":"#2E7D32","Engineering":"#6A1B9A",
+  "Liberal Arts":"#E65100","Nursing":"#AD1457"
+};
+
+function getFiltered() {
+  const dept = document.getElementById('deptFilter').value;
+  const year = document.getElementById('yearFilter').value;
+  const gpa = document.getElementById('gpaFilter').value;
+  return students.filter(s => {
+    if(dept !== 'All' && s.dept !== dept) return false;
+    if(year !== 'All' && s.year !== parseInt(year)) return false;
+    if(gpa === 'high' && s.gpa < 3.5) return false;
+    if(gpa === 'mid' && (s.gpa < 2.5 || s.gpa >= 3.5)) return false;
+    if(gpa === 'low' && s.gpa >= 2.5) return false;
+    return true;
+  });
+}
+
+let charts = {};
+function destroyAll() { Object.values(charts).forEach(c=>c&&c.destroy()); charts={}; }
+
+function avg(arr, key) { return arr.reduce((s,d)=>s+(d[key]||0),0)/arr.length; }
+
+function updateKPIs(data) {
+  const avgGPA = avg(data,'gpa').toFixed(2);
+  const avgAt = avg(data,'attend').toFixed(1)+'%';
+  const atRisk = data.filter(s=>s.gpa<2.5||s.attend<75).length;
+  const schol = Math.round(data.filter(s=>s.scholarship==='Yes').length/data.length*100)+'%';
+  const depts = [...new Set(data.map(s=>s.dept))];
+  const topDept = depts.sort((a,b)=>avg(data.filter(s=>s.dept===b),'gpa')-avg(data.filter(s=>s.dept===a),'gpa'))[0]||'—';
+  document.getElementById('kAvgGPA').textContent = avgGPA;
+  document.getElementById('kAttend').textContent = avgAt;
+  document.getElementById('kRisk').textContent = atRisk;
+  document.getElementById('kSchol').textContent = schol;
+  document.getElementById('kTopDept').textContent = (topDept||'—').split(' ')[0];
+  document.getElementById('kStudents').textContent = `${data.length} students`;
+  document.getElementById('countLabel').textContent = data.length;
+  document.getElementById('groupGPA').textContent = avgGPA;
+}
+
+function buildGPAByDept(data) {
+  const ctx = document.getElementById('gpaByDept').getContext('2d');
+  const depts = ['Nursing','Computer Science','Engineering','Liberal Arts','Business'];
+  const vals = depts.map(d => {
+    const grp = data.filter(s=>s.dept===d);
+    return grp.length ? avg(grp,'gpa').toFixed(2) : 0;
+  });
+  charts.dept = new Chart(ctx,{type:'bar',data:{labels:depts.map(d=>d.length>10?d.split(' ')[0]:d),datasets:[{data:vals,backgroundColor:depts.map(d=>deptColors[d]+'CC'),borderColor:depts.map(d=>deptColors[d]),borderWidth:1.5,borderRadius:5}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:v=>`Avg GPA: ${v.raw}`}}},scales:{x:{min:2,max:4.2,ticks:{font:{size:11}}}}}});
+}
+
+function buildScatter(data) {
+  const ctx = document.getElementById('scatterPlot').getContext('2d');
+  const depts = [...new Set(data.map(s=>s.dept))];
+  const datasets = depts.map(d=>({
+    label:d, data:data.filter(s=>s.dept===d).map(s=>({x:s.attend,y:s.gpa,student:s})),
+    backgroundColor:deptColors[d]+'99', pointRadius:6, pointHoverRadius:9
+  }));
+  charts.scatter = new Chart(ctx,{type:'scatter',data:{datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:10},boxWidth:10}},tooltip:{callbacks:{label:v=>`${v.raw.student.id}: Attend=${v.raw.x}%, GPA=${v.raw.y}`}}},scales:{x:{title:{display:true,text:'Attendance Rate (%)'},min:65,max:100},y:{title:{display:true,text:'GPA'},min:1.8,max:4.2}}}});
+}
+
+function buildScholarGPA(data) {
+  const ctx = document.getElementById('scholarGPA').getContext('2d');
+  const depts = ['CS','Business','Eng','Lib Arts','Nursing'];
+  const fullDepts = ['Computer Science','Business','Engineering','Liberal Arts','Nursing'];
+  const yes = fullDepts.map(d=>{ const g=data.filter(s=>s.dept===d&&s.scholarship==='Yes'); return g.length?avg(g,'gpa').toFixed(2):0; });
+  const no = fullDepts.map(d=>{ const g=data.filter(s=>s.dept===d&&s.scholarship==='No'); return g.length?avg(g,'gpa').toFixed(2):0; });
+  charts.schol = new Chart(ctx,{type:'bar',data:{labels:depts,datasets:[{label:'Scholarship',data:yes,backgroundColor:'#5E35B1CC',borderRadius:3},{label:'No Scholarship',data:no,backgroundColor:'#9E9E9ECC',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:10}}}},scales:{y:{min:2,max:4.2}}}});
+}
+
+function buildWorkGPA(data) {
+  const ctx = document.getElementById('workGPA').getContext('2d');
+  const depts = ['CS','Business','Eng','Lib Arts','Nursing'];
+  const fullDepts = ['Computer Science','Business','Engineering','Liberal Arts','Nursing'];
+  const work = fullDepts.map(d=>{ const g=data.filter(s=>s.dept===d&&s.partTime==='Yes'); return g.length?avg(g,'gpa').toFixed(2):0; });
+  const noWork = fullDepts.map(d=>{ const g=data.filter(s=>s.dept===d&&s.partTime==='No'); return g.length?avg(g,'gpa').toFixed(2):0; });
+  charts.work = new Chart(ctx,{type:'bar',data:{labels:depts,datasets:[{label:'Works Part-Time',data:work,backgroundColor:'#E65100CC',borderRadius:3},{label:'No Job',data:noWork,backgroundColor:'#43A047CC',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:10}}}},scales:{y:{min:1.5,max:4.2}}}});
+}
+
+function buildStudyGPA(data) {
+  const ctx = document.getElementById('studyGPA').getContext('2d');
+  const bands = [
+    {label:'<12 hrs',fn:s=>s.study<12},
+    {label:'12–16 hrs',fn:s=>s.study>=12&&s.study<17},
+    {label:'17–22 hrs',fn:s=>s.study>=17&&s.study<23},
+    {label:'23–28 hrs',fn:s=>s.study>=23&&s.study<29},
+    {label:'29+ hrs',fn:s=>s.study>=29},
+  ];
+  const vals = bands.map(b=>{ const g=data.filter(b.fn); return g.length?avg(g,'gpa').toFixed(2):0; });
+  charts.study = new Chart(ctx,{type:'bar',data:{labels:bands.map(b=>b.label),datasets:[{data:vals,backgroundColor:['#EF9A9A','#FFCC80','#A5D6A7','#80CBC4','#80DEEA'],borderWidth:1.5,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:v=>`Avg GPA: ${v.raw}`}}},scales:{y:{min:2,max:4.2}}}});
+}
+
+function buildTable(data) {
+  const sorted = [...data].sort((a,b)=>b.gpa-a.gpa);
+  const hasRisk = sorted.some(s=>s.gpa<2.5||s.attend<75);
+  document.getElementById('atRiskBanner').style.display = hasRisk ? 'block' : 'none';
+  const tbody = document.getElementById('studentBody');
+  tbody.innerHTML = sorted.map(s=>{
+    const cls = s.gpa>=3.5?'gpa-hi':s.gpa>=2.5?'gpa-mid':'gpa-lo';
+    const dotCls = s.gpa>=3.5?'dot-g':s.gpa>=2.5?'dot-y':'dot-r';
+    const attendCls = s.attend<75?'style="color:#C62828;font-weight:700"':'';
+    return `<tr onclick="showProfile('${s.id}')">
+      <td><span class="dot ${dotCls}"></span>${s.id}</td>
+      <td>${s.dept.split(' ')[0]}</td><td>Year ${s.year}</td>
+      <td class="${cls}">${s.gpa.toFixed(1)}</td>
+      <td ${attendCls}>${s.attend}%</td>
+      <td>${s.study}h/wk</td>
+      <td>${s.scholarship==='Yes'?'✓':''}</td>
+      <td>${s.partTime==='Yes'?'✓':''}</td>
+      <td>${s.tutoring}</td>
+      <td>${s.mental}/10</td>
+    </tr>`;
+  }).join('');
+}
+
+function showProfile(id) {
+  const s = students.find(x=>x.id===id);
+  if(!s) return;
+  document.getElementById('profTitle').textContent = `${s.id} — ${s.dept} Year ${s.year}`;
+  const items = [
+    ['GPA', s.gpa.toFixed(1)+' ('+s.grade+')'],
+    ['Attendance', s.attend+'%'],
+    ['Study Hours', s.study+' hrs/week'],
+    ['Mental Health', s.mental+'/10'],
+    ['Scholarship', s.scholarship],
+    ['Part-Time Job', s.partTime],
+    ['Tutoring Sessions', s.tutoring],
+    ['Gender', s.gender === 'M' ? 'Male' : 'Female']
+  ];
+  document.getElementById('profGrid').innerHTML = items.map(([l,v])=>`<div class="prof-item"><label>${l}</label><span>${v}</span></div>`).join('');
+  document.getElementById('profileModal').classList.add('open');
+}
+function closeModal() { document.getElementById('profileModal').classList.remove('open'); }
+function closeProfile(e) { if(e.target.id==='profileModal') closeModal(); }
+
+function updateAll() {
+  const data = getFiltered();
+  destroyAll();
+  updateKPIs(data);
+  buildGPAByDept(data);
+  buildScatter(data);
+  buildScholarGPA(data);
+  buildWorkGPA(data);
+  buildStudyGPA(data);
+  buildTable(data);
+}
+updateAll();
+</script>
+</body>
+</html>
